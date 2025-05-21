@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import metrics, backend as K
 import matplotlib.pyplot as plt
@@ -65,13 +65,12 @@ def build_lstm_model(units_list, activation_lstm, activation_out, learning_rate,
 # Callbacks
 early_stop = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
 reduce_lr = ReduceLROnPlateau(monitor='loss', patience=5, factor=0.5, verbose=1)
-model_checkpoint = ModelCheckpoint('best_model_A.h5', save_best_only=True, monitor='loss')
 
 # Criação do modelo
 regressor = build_lstm_model(
-    units_list=[128, 96, 64, 32],
-    activation_lstm='tanh',
-    activation_out='linear',
+    units_list=[96, 128, 96, 32],
+    activation_lstm='relu',
+    activation_out='sigmoid',
     learning_rate=0.001,
     optimizer_class=Adam
 )
@@ -79,8 +78,8 @@ regressor = build_lstm_model(
 # Treinamento
 regressor.fit(lista_previsores, lista_preco_real,
               epochs=100,
-              batch_size=32,
-              callbacks=[early_stop, reduce_lr, model_checkpoint],
+              batch_size=64,
+              callbacks=[early_stop, reduce_lr],
               verbose=1)
 
 # Preparação dos dados de teste
