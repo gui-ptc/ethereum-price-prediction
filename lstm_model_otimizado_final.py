@@ -73,12 +73,11 @@ reduce_lr = ReduceLROnPlateau(monitor='loss', patience=5, factor=0.5, verbose=1)
 
 # Criação do modelo
 regressor = build_lstm_model(
-    units_list=[96, 128, 96, 32 ],
-    activation_lstm='relu',
-    activation_out='sigmoid',
+    units_list=[96, 128, 96, 32],
+    activation_lstm='tanh',
+    activation_out='linear',
     learning_rate=0.0005,
     optimizer_class=Adam,
-    #l2_lambda=0.001
 )
 
 # Treinamento
