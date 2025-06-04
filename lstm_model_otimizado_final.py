@@ -5,7 +5,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam, RMSprop
-from tensorflow.keras import metrics, backend as K, regularizers
+from tensorflow.keras import metrics, backend as K
 import matplotlib.pyplot as plt
 
 # Leitura e preparação dos dados
@@ -45,7 +45,7 @@ def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
 # Função para construção do modelo LSTM
-def build_lstm_model(units_list, activation_lstm, activation_out, learning_rate, optimizer_class, l2_lambda=0.001):
+def build_lstm_model(units_list, activation_lstm, activation_out, learning_rate, optimizer_class):
     model = Sequential()
     for i, units in enumerate(units_list):
         return_seq = i < len(units_list) - 1
@@ -53,13 +53,11 @@ def build_lstm_model(units_list, activation_lstm, activation_out, learning_rate,
             model.add(LSTM(units,
                            return_sequences=return_seq,
                            activation=activation_lstm,
-                           kernel_regularizer=regularizers.l2(l2_lambda),
                            input_shape=(lista_previsores.shape[1], lista_previsores.shape[2])))
         else:
             model.add(LSTM(units,
                            return_sequences=return_seq,
-                           activation=activation_lstm,
-                           kernel_regularizer = regularizers.l2(l2_lambda)))
+                           activation=activation_lstm))
         if return_seq:
             model.add(Dropout(0.2))
     model.add(Dense(1, activation=activation_out))
@@ -75,18 +73,18 @@ reduce_lr = ReduceLROnPlateau(monitor='loss', patience=5, factor=0.5, verbose=1)
 
 # Criação do modelo
 regressor = build_lstm_model(
-    units_list=[128, 96, 64, 32],
-    activation_lstm='tanh',
-    activation_out='linear',
+    units_list=[96, 128, 96, 32 ],
+    activation_lstm='relu',
+    activation_out='sigmoid',
     learning_rate=0.0005,
     optimizer_class=Adam,
-    l2_lambda=0.001
+    #l2_lambda=0.001
 )
 
 # Treinamento
 regressor.fit(lista_previsores, lista_preco_real,
               epochs=100,
-              batch_size=16,
+              batch_size=64,
               callbacks=[early_stop, reduce_lr],
               verbose=1)
 
