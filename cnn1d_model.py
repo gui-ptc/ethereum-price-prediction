@@ -41,26 +41,28 @@ def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
 # Construção aprimorada do modelo CNN1D
-def build_cnn1d_model(input_shape, activation_out='linear', learning_rate=0.0005, optimizer_class=Adam):
+def build_cnn1d_model(filters_list, kernel_sizes, activation_conv, activation_dense, activation_out,
+                      dropout_rate, learning_rate, optimizer_class, input_shape):
     model = Sequential()
-    model.add(Conv1D(filters=64, kernel_size=5, activation='relu', input_shape=input_shape))
-    model.add(BatchNormalization())
-    model.add(MaxPooling1D(pool_size=2))
-    model.add(Dropout(0.3))
 
-    model.add(Conv1D(filters=128, kernel_size=3, activation='relu'))
-    model.add(BatchNormalization())
-    model.add(MaxPooling1D(pool_size=2))
-    model.add(Dropout(0.3))
+    # Camadas convolucionais + BN + MaxPool + Dropout
+    for i, (filters, kernel) in enumerate(zip(filters_list, kernel_sizes)):
+        if i == 0:
+            model.add(Conv1D(filters=filters, kernel_size=kernel, activation=activation_conv, input_shape=input_shape))
+        else:
+            model.add(Conv1D(filters=filters, kernel_size=kernel, activation=activation_conv))
+        model.add(BatchNormalization())
+        model.add(MaxPooling1D(pool_size=2))
 
-    model.add(Conv1D(filters=256, kernel_size=3, activation='relu'))
-    model.add(BatchNormalization())
-    model.add(GlobalAveragePooling1D())
-    model.add(Dropout(0.3))
+    # Dropout apenas após o flatten, como na versão anterior
+    model.add(Flatten())
+    model.add(Dropout(dropout_rate))
 
-    model.add(Dense(64, activation='relu'))
+    # Camadas densas finais
+    model.add(Dense(64, activation=activation_dense))
     model.add(Dense(1, activation=activation_out))
 
+    # Compilação
     optimizer = optimizer_class(learning_rate=learning_rate)
     model.compile(optimizer=optimizer,
                   loss='mean_squared_error',
@@ -70,10 +72,19 @@ def build_cnn1d_model(input_shape, activation_out='linear', learning_rate=0.0005
 early_stop = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True, verbose=1)
 reduce_lr = ReduceLROnPlateau(monitor='loss', patience=5, factor=0.5, verbose=1)
 
-regressor = build_cnn1d_model(input_shape=(lista_previsores.shape[1], lista_previsores.shape[2]))
-
+regressor = build_cnn1d_model(
+    filters_list=[32, 64, 128],
+    kernel_sizes=[5, 3, 3],
+    activation_conv='relu',
+    activation_dense='relu',
+    activation_out='linear',
+    dropout_rate=0.5,  # POS-Flatten agora
+    learning_rate=0.001,
+    optimizer_class=Adam,
+    input_shape=(lista_previsores.shape[1], lista_previsores.shape[2])
+)
 regressor.fit(lista_previsores, lista_preco_real,
-              epochs=100,
+              epochs=150,
               batch_size=32,
               callbacks=[early_stop, reduce_lr],
               verbose=1)
