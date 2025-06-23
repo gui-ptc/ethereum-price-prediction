@@ -160,13 +160,11 @@ for i in range(len(y_test_real)):
 
 # Final Evaluation incluindo MAPE real
 print("\nFinal Evaluation:")
-print("metrics = ['MSE','MAE','internal MAPE','RMSE','real MAPE']")
+print("metrics = ['MAE','RMSE','real MAPE']")
 final_metrics = {
-    'mean_squared_error': eval[0],
     'mean_absolute_error': eval[1],
-    'internal_mape': eval[2],                   # MAPE sobre y_norm
     'root_mean_squared_error': float(np.sqrt(eval[0])),
-    'mape_real': mape_real                      # MAPE em reais
+    'mape_real': mape_real
 }
 print(final_metrics)
 
