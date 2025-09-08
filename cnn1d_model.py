@@ -1,6 +1,6 @@
 import os
 
-SEED = 42
+SEED = 18
 os.environ['PYTHONHASHSEED'] = str(SEED)
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 
@@ -17,7 +17,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv1D, MaxPooling1D, GlobalAveragePooling1D, Dense, Dropout, BatchNormalization, SpatialDropout1D, Activation
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, RMSprop
 from tensorflow.keras import metrics, backend as K
 from tensorflow.keras.losses import Huber
 from tensorflow.keras.regularizers import l2
@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 df = pd.read_csv('Ethereum.csv').dropna()
 df['log_close'] = np.log(df['close'])
 df['return']    = df['log_close'].diff()
-df = df.dropna()      # elimina a primeira linha (NaN)
+df = df.dropna()
 x = df[['open', 'high', 'low', 'volume']]
 y = df['return']
 
@@ -64,7 +64,6 @@ x_val, y_val = lista_previsores[split:], lista_preco_real[split:]
 def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
-# Construção aprimorada do modelo CNN1D
 def build_cnn1d_model(filters_list, kernel_sizes, activation_conv, activation_dense, activation_out,
                       dropout_rate, learning_rate, optimizer_class, input_shape):
     model = Sequential()
@@ -74,13 +73,13 @@ def build_cnn1d_model(filters_list, kernel_sizes, activation_conv, activation_de
             model.add(Conv1D(filters=filters,
                              kernel_size=kernel,
                              use_bias=False,
-                             padding='same',
+                             padding='causal',
                              input_shape=input_shape))
         else:
             model.add(Conv1D(filters=filters,
                              kernel_size=kernel,
                              use_bias=False,
-                             padding='same'))
+                             padding='causal'))
         model.add(BatchNormalization())
         model.add(Activation(activation_conv))
         model.add(SpatialDropout1D(0.2))
@@ -104,10 +103,10 @@ early_stop = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.5, verbose=1)
 
 regressor = build_cnn1d_model(
-    filters_list=[128, 256, 512],
-    kernel_sizes=[5, 5, 3],
-    activation_conv='relu',
-    activation_dense='relu',
+    filters_list=[128,256,512],
+    kernel_sizes=[5,5,3],
+    activation_conv='swish',
+    activation_dense='swish',
     activation_out='linear',
     dropout_rate=0.2,
     learning_rate=0.0005,
@@ -146,7 +145,6 @@ pred_teste_norm = regressor.predict(lista_previsores_test)
 pred_teste_real = normalizador_saida.inverse_transform(pred_teste_norm)
 y_test_real = normalizador_saida.inverse_transform(lista_preco_real_test)
 
-# ──────────────────────────────────────────────────────────────────────────────
 # Reconstrução do preço a partir do retorno previsto
 # Extrai o log_close correspondente ao conjunto de teste (já sem o first-diff)
 log_close_test = df['log_close'].iloc[split_idx:].reset_index(drop=True)
@@ -186,6 +184,8 @@ plt.figure(figsize=(10, 6))
 plt.plot(pred_price_treino,     label='Predito (treino)')
 plt.plot(actual_price_treino,   label='Real    (treino)')
 plt.title('Previsão de Preço no Conjunto de Treino')
+plt.xlabel('Eixo X: Amostra de teste')
+plt.ylabel('Eixo Y: Preço (USD)')
 plt.legend()
 plt.tight_layout()
 plt.savefig('grafico_treino_cnn1d_preco.png', dpi=100)
@@ -196,6 +196,8 @@ plt.figure(figsize=(10, 6))
 plt.plot(pred_price,  label='Predito (teste)')
 plt.plot(actual_price, label='Real    (teste)')
 plt.title('Previsão de Preço no Conjunto de Teste')
+plt.xlabel('Eixo X: Amostra de teste')
+plt.ylabel('Eixo Y: Preço (USD)')
 plt.legend()
 plt.tight_layout()
 plt.savefig('grafico_teste_cnn1d_preco.png', dpi=100)
@@ -212,6 +214,8 @@ plt.plot(
     label='Real    (Geral)'
 )
 plt.title('Previsão Geral de Preço')
+plt.xlabel('Eixo X: Amostra de teste')
+plt.ylabel('Eixo Y: Preço (USD)')
 plt.legend()
 plt.tight_layout()
 plt.savefig('grafico_geral_cnn1d_preco.png', dpi=100)
@@ -220,11 +224,11 @@ plt.close()
 
 # Final Evaluation incluindo mape_real
 print("\nFinal Evaluation:")
-print("metrics = ['MAE','RMSE','MAPE']")
+print("metrics = ['RMSE','MAE','MAPE']")
 final_metrics = {
-    'mean_absolute_error': eval[1],
     'root_mean_squared_error': float(np.sqrt(eval[0])),
-     'mape_price': mape_price
+    'mean_absolute_error': eval[1],
+    'mape_price': mape_price
 }
 print(final_metrics)
 
